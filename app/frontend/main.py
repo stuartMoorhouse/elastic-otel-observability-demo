@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -13,32 +12,7 @@ from fastapi.templating import Jinja2Templates
 from opentelemetry import trace
 from opentelemetry.propagate import inject
 
-# ---------------------------------------------------------------------------
-# Structured JSON logging with trace correlation
-# ---------------------------------------------------------------------------
-
-class JSONFormatter(logging.Formatter):
-    def format(self, record):
-        log_record = {
-            "timestamp": self.formatTime(record, self.datefmt),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-        }
-        span = trace.get_current_span()
-        ctx = span.get_span_context()
-        if ctx and ctx.trace_id:
-            log_record["trace_id"] = format(ctx.trace_id, "032x")
-            log_record["span_id"] = format(ctx.span_id, "016x")
-        else:
-            log_record["trace_id"] = "0" * 32
-            log_record["span_id"] = "0" * 16
-        if record.exc_info and record.exc_info[0] is not None:
-            log_record["exception"] = self.formatException(record.exc_info)
-        return json.dumps(log_record)
+from app.logging import JSONFormatter
 
 
 def setup_logging():
@@ -65,21 +39,6 @@ tracer = trace.get_tracer("ecommerce-frontend")
 API_BASE = os.environ.get("API_BASE", "http://localhost:8000")
 
 # ---------------------------------------------------------------------------
-# HTTP client helper with W3C trace propagation
-# ---------------------------------------------------------------------------
-
-async def api_call(method: str, path: str, **kwargs):
-    """Make an HTTP call to the backend API with trace context propagation."""
-    headers = kwargs.pop("headers", {})
-    # Inject W3C traceparent header
-    inject(headers)
-
-    url = f"{API_BASE}{path}"
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.request(method, url, headers=headers, **kwargs)
-        return resp
-
-# ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
 
@@ -88,11 +47,26 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Frontend starting")
+    app.state.http_client = httpx.AsyncClient(base_url=API_BASE, timeout=60.0)
     yield
+    await app.state.http_client.aclose()
     logger.info("Frontend shutting down")
 
 
 app = FastAPI(title="E-Commerce Frontend", version="1.0.0", lifespan=lifespan)
+
+
+# ---------------------------------------------------------------------------
+# HTTP client helper with W3C trace propagation
+# ---------------------------------------------------------------------------
+
+async def api_call(method: str, path: str, **kwargs):
+    """Make an HTTP call to the backend API with trace context propagation."""
+    headers = kwargs.pop("headers", {})
+    inject(headers)
+    client = app.state.http_client
+    resp = await client.request(method, path, headers=headers, **kwargs)
+    return resp
 
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))

@@ -34,8 +34,8 @@ receivers:
       - type: json_parser
         timestamp:
           parse_from: attributes.timestamp
-          layout: "%Y-%m-%dT%H:%M:%S.%fZ"
-          layout_type: gotime
+          layout: "%Y-%m-%d %H:%M:%S,%f"
+          layout_type: strptime
         severity:
           parse_from: attributes.level
           mapping:
@@ -48,7 +48,7 @@ receivers:
         from: attributes.message
         to: body
       - type: move
-        from: attributes.service
+        from: attributes.logger
         to: resource["service.name"]
 
 processors:
@@ -98,7 +98,7 @@ service:
     metrics:
       receivers: [otlp, hostmetrics]
       processors: [resourcedetection, batch]
-      exporters: [debug]
+      exporters: [elasticsearch, debug]
 
     logs:
       receivers: [filelog]

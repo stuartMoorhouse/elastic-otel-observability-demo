@@ -13,36 +13,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.chaos import ChaosMiddleware, chaos_state
-from app.api.database import SessionLocal, get_db, init_db, engine
+from app.api.database import get_db, init_db, engine
 from app.api.models import CartItem, Order, OrderItem, Product
-
-# ---------------------------------------------------------------------------
-# Structured JSON logging with trace correlation
-# ---------------------------------------------------------------------------
-
-class JSONFormatter(logging.Formatter):
-    def format(self, record):
-        log_record = {
-            "timestamp": self.formatTime(record, self.datefmt),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-        }
-        # Add trace context if available
-        span = trace.get_current_span()
-        ctx = span.get_span_context()
-        if ctx and ctx.trace_id:
-            log_record["trace_id"] = format(ctx.trace_id, "032x")
-            log_record["span_id"] = format(ctx.span_id, "016x")
-        else:
-            log_record["trace_id"] = "0" * 32
-            log_record["span_id"] = "0" * 16
-        if record.exc_info and record.exc_info[0] is not None:
-            log_record["exception"] = self.formatException(record.exc_info)
-        return json.dumps(log_record)
+from app.logging import JSONFormatter
 
 
 def setup_logging():
@@ -116,7 +89,7 @@ app = FastAPI(title="E-Commerce API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -366,7 +339,10 @@ async def chaos_configure(scenario: str, config: ChaosConfig):
         pool_size = max(1, min(20, int(value or 0)))
         chaos_state.db_pool_size = pool_size
         # Dynamically reconfigure pool — in practice this limits new connections
-        engine.pool._pool.maxsize = pool_size
+        try:
+            engine.pool._pool.maxsize = pool_size
+        except AttributeError:
+            logger.warning("Could not resize pool — SQLAlchemy internals may have changed")
         logger.info("Chaos: db_pool_size set to %d", pool_size)
 
     elif scenario == "log-flood":
