@@ -1,0 +1,64 @@
+/* OTel Demo Shop — Custom Styles */
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Hero banner */
+.hero-banner {
+    background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+}
+
+/* Product cards */
+.product-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Chaos cards */
+.chaos-card {
+    transition: border-color 0.3s ease;
+    border-width: 2px;
+}
+
+.chaos-card.border-danger {
+    border-color: #dc3545 !important;
+    background-color: #fff5f5;
+}
+
+/* Slider styling */
+.form-range::-webkit-slider-thumb {
+    cursor: pointer;
+}
+
+/* Navbar active link */
+.navbar .nav-link:hover {
+    opacity: 0.85;
+}
+
+/* Badge in card headers */
+.status-badge {
+    font-size: 0.85rem;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+}
+
+/* Table tweaks */
+.table th {
+    font-weight: 600;
+}

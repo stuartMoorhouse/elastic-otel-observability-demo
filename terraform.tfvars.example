@@ -1,0 +1,21 @@
+# AWS Configuration
+# aws_region  = "eu-west-1"       # AWS region for EC2 and networking
+# aws_profile = "my-profile"      # AWS CLI profile (optional, uses default chain if omitted)
+
+# EC2 Configuration
+# instance_type = "t3.large"      # Instance type for the demo host
+
+# Elastic Cloud Configuration
+# elastic_region = "eu-west-1"    # Elastic Cloud deployment region
+
+# Network Access
+# allowed_cidr = "203.0.113.0/32" # CIDR for SSH/HTTP access (auto-detected if omitted)
+
+# Tagging / Naming
+# project_name = "otel-elastic-demo"
+# aws_tags = {
+#   project     = "otel-elastic-demo"
+#   owner       = "your-name"
+#   environment = "demo"
+#   created_by  = "terraform"
+# }

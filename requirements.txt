@@ -1,0 +1,26 @@
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Redis
+redis>=5.0.0
+
+# HTTP client
+httpx>=0.25.0
+
+# Templates (frontend)
+jinja2>=3.1.0
+python-multipart>=0.0.6
+
+# OpenTelemetry - API & SDK
+opentelemetry-api>=1.22.0
+opentelemetry-sdk>=1.22.0
+opentelemetry-distro>=0.43b0
+
+# OpenTelemetry - Instrumentation (auto-installed via bootstrap)
+opentelemetry-exporter-otlp>=1.22.0
+opentelemetry-instrumentation>=0.43b0

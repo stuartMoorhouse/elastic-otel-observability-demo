@@ -1,0 +1,106 @@
+# OTel Collector Configuration for Docker Compose
+# ------------------------------------------------
+# Environment variables ELASTICSEARCH_URL and ELASTIC_API_KEY are injected
+# via docker-compose.yml (or the .env file on EC2).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      disk: {}
+      filesystem: {}
+      network: {}
+
+  filelog:
+    include:
+      - /var/log/app/*.log
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: "%Y-%m-%dT%H:%M:%S.%fZ"
+          layout_type: gotime
+        severity:
+          parse_from: attributes.level
+          mapping:
+            debug: DEBUG
+            info: INFO
+            warn: WARN
+            error: ERROR
+            fatal: FATAL
+      - type: move
+        from: attributes.message
+        to: body
+      - type: move
+        from: attributes.service
+        to: resource["service.name"]
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 256
+
+  resourcedetection:
+    detectors: [env, system]
+    system:
+      hostname_sources: [os]
+
+  attributes/logs:
+    actions:
+      - key: event.dataset
+        value: app.logs
+        action: upsert
+
+exporters:
+  elasticsearch:
+    endpoints: ["${env:ELASTICSEARCH_URL}"]
+    api_key: "${env:ELASTIC_API_KEY}"
+    logs_dynamic_index:
+      enabled: true
+    mapping:
+      mode: ecs
+
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  telemetry:
+    logs:
+      level: info
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, batch]
+      exporters: [elasticsearch]
+
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [resourcedetection, batch]
+      exporters: [debug]
+
+    logs:
+      receivers: [filelog]
+      processors: [resourcedetection, attributes/logs, batch]
+      exporters: [elasticsearch]

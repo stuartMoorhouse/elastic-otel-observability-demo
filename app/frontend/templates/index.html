@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}OTel Demo Shop — Home{% endblock %}
+
+{% block content %}
+<div class="hero-banner bg-primary text-white rounded-3 p-5 mb-5">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="display-4 fw-bold">Welcome to OTel Demo Shop</h1>
+            <p class="lead mb-4">A fully instrumented e-commerce application for exploring Elastic Observability with OpenTelemetry. Browse products, place orders, and inject chaos to see how observability helps you debug real-world issues.</p>
+            <a href="/products" class="btn btn-light btn-lg me-2"><i class="bi bi-grid"></i> Browse Products</a>
+            <a href="/admin/chaos" class="btn btn-outline-light btn-lg"><i class="bi bi-radioactive"></i> Chaos Panel</a>
+        </div>
+        <div class="col-lg-4 text-center d-none d-lg-block">
+            <i class="bi bi-shop display-1" style="font-size: 8rem; opacity: 0.3;"></i>
+        </div>
+    </div>
+</div>
+
+<h2 class="mb-4">Featured Products</h2>
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+    {% for product in featured_products %}
+    <div class="col">
+        <div class="card h-100 shadow-sm product-card">
+            <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+            <div class="card-body d-flex flex-column">
+                <span class="badge bg-secondary mb-2 align-self-start">{{ product.category }}</span>
+                <h5 class="card-title">{{ product.name }}</h5>
+                <p class="card-text text-muted small flex-grow-1">{{ product.description[:80] }}...</p>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <span class="h5 text-primary mb-0">${{ "%.2f"|format(product.price) }}</span>
+                    <a href="/products/{{ product.id }}" class="btn btn-sm btn-outline-primary">View</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not featured_products %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No products available. The API may be starting up.
+</div>
+{% endif %}
+{% endblock %}

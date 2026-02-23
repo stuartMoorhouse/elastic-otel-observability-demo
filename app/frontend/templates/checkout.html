@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout — OTel Demo Shop{% endblock %}
+
+{% block content %}
+<h1 class="mb-4"><i class="bi bi-credit-card"></i> Checkout</h1>
+
+{% if error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i> {{ error }}
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Your Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/checkout">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="name" name="name" value="Guest" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" value="guest@example.com" required>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-bag-check"></i> Place Order — ${{ "%.2f"|format(cart.total) }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Order Summary</h5>
+            </div>
+            <div class="card-body">
+                {% if cart.items %}
+                <ul class="list-group list-group-flush mb-3">
+                    {% for item in cart.items %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>
+                            {{ item.product.name if item.product else 'Product #' ~ item.product_id }}
+                            <small class="text-muted">x{{ item.quantity }}</small>
+                        </span>
+                        <span>${{ "%.2f"|format((item.product.price if item.product else 0) * item.quantity) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="d-flex justify-content-between fw-bold fs-5">
+                    <span>Total:</span>
+                    <span class="text-primary">${{ "%.2f"|format(cart.total) }}</span>
+                </div>
+                {% else %}
+                <p class="text-muted">Your cart is empty.</p>
+                <a href="/products" class="btn btn-outline-primary">Browse Products</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

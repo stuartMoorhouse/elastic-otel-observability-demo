@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}Chaos Engineering Panel — OTel Demo Shop{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-radioactive"></i> Chaos Engineering Panel</h1>
+    <button id="resetAll" class="btn btn-danger btn-lg"><i class="bi bi-arrow-counterclockwise"></i> Reset All</button>
+</div>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> <strong>Warning:</strong> These controls inject real failures into the running application. Use them to observe how failures appear in Elastic Observability.
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 g-4" id="chaosCards">
+
+    <!-- 1. Slow Database Queries -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-slow-db">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> Slow Database Queries</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Add artificial latency before every database call.</p>
+                <label class="form-label">Delay: <strong class="slider-value">0</strong> ms</label>
+                <input type="range" class="form-range chaos-slider" min="0" max="5000" step="100" value="{{ state.get('slow_db_ms', 0) }}"
+                       data-scenario="slow-db" data-unit="ms">
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. High Error Rate -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-error-rate">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-bug"></i> High Error Rate (5xx)</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Random chance each request returns HTTP 500.</p>
+                <label class="form-label">Error rate: <strong class="slider-value">0</strong>%</label>
+                <input type="range" class="form-range chaos-slider" min="0" max="100" step="5" value="{{ state.get('error_rate_pct', 0) }}"
+                       data-scenario="error-rate" data-unit="%">
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Memory Leak -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-memory-leak">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-memory"></i> Memory Leak</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Append 1KB to a growing list on every request. Memory usage will climb steadily.</p>
+                <div class="form-check form-switch">
+                    <input class="form-check-input chaos-toggle" type="checkbox" id="toggle-memory-leak"
+                           data-scenario="memory-leak" {% if state.get('memory_leak_enabled') %}checked{% endif %}>
+                    <label class="form-check-label" for="toggle-memory-leak">Enable Memory Leak</label>
+                </div>
+                <small class="text-muted mt-2 d-block">Leaked: <span id="memory-leak-size">{{ state.get('memory_leak_size_mb', 0) }}</span> MB</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. CPU Saturation -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-cpu-saturation">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-cpu"></i> CPU Saturation</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Spawn busy-wait threads that burn CPU cycles.</p>
+                <label class="form-label">Threads: <strong class="slider-value">0</strong></label>
+                <input type="range" class="form-range chaos-slider" min="0" max="8" step="1" value="{{ state.get('cpu_threads', 0) }}"
+                       data-scenario="cpu-saturation" data-unit="">
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Downstream Dependency Timeout -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-downstream-timeout">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Downstream Timeout</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Simulate a slow external dependency by adding a sleep to each request.</p>
+                <label class="form-label">Timeout: <strong class="slider-value">0</strong> s</label>
+                <input type="range" class="form-range chaos-slider" min="0" max="30" step="1" value="{{ state.get('downstream_timeout_s', 0) }}"
+                       data-scenario="downstream-timeout" data-unit="s">
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. DB Connection Pool Exhaustion -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-db-pool">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-database-x"></i> DB Pool Exhaustion</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Dynamically reduce the database connection pool size to starve queries.</p>
+                <label class="form-label">Pool size: <strong class="slider-value">0</strong></label>
+                <input type="range" class="form-range chaos-slider" min="0" max="20" step="1" value="{{ state.get('db_pool_size', 0) }}"
+                       data-scenario="db-pool-exhaustion" data-unit="">
+                <small class="text-muted">0 = default (not active). Lower values = more contention.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Log Flooding -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-log-flood">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Log Flooding</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Write extra log lines per request, flooding log storage.</p>
+                <label class="form-label">Lines/request: <strong class="slider-value">0</strong></label>
+                <input type="range" class="form-range chaos-slider" min="0" max="1000" step="50" value="{{ state.get('log_flood_lines', 0) }}"
+                       data-scenario="log-flood" data-unit=" lines">
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. N+1 Query Problem -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-n-plus-one">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> N+1 Query Problem</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Replace efficient batch queries with N individual queries, one per row.</p>
+                <div class="form-check form-switch">
+                    <input class="form-check-input chaos-toggle" type="checkbox" id="toggle-n-plus-one"
+                           data-scenario="n-plus-one" {% if state.get('n_plus_one_enabled') %}checked{% endif %}>
+                    <label class="form-check-label" for="toggle-n-plus-one">Enable N+1 Queries</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. Disk I/O Saturation -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-disk-io">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-hdd"></i> Disk I/O Saturation</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Write temporary files to disk on each request to saturate I/O.</p>
+                <label class="form-label">Write: <strong class="slider-value">0</strong> MB/req</label>
+                <input type="range" class="form-range chaos-slider" min="0" max="50" step="5" value="{{ state.get('disk_io_mb', 0) }}"
+                       data-scenario="disk-io" data-unit=" MB">
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. Cascading Latency (Retry Storm) -->
+    <div class="col">
+        <div class="card shadow-sm chaos-card" id="card-retry-storm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-tornado"></i> Retry Storm</h5>
+                <span class="badge status-badge bg-success">OFF</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Simulate cascading latency with an internal retry loop using exponential backoff.</p>
+                <div class="form-check form-switch">
+                    <input class="form-check-input chaos-toggle" type="checkbox" id="toggle-retry-storm"
+                           data-scenario="retry-storm" {% if state.get('retry_storm_enabled') %}checked{% endif %}>
+                    <label class="form-check-label" for="toggle-retry-storm">Enable Retry Storm</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const API_BASE = 'http://' + window.location.hostname + ':8000';
+
+function updateCardStyle(card, isActive) {
+    const badge = card.querySelector('.status-badge');
+    if (isActive) {
+        badge.textContent = 'ACTIVE';
+        badge.classList.remove('bg-success');
+        badge.classList.add('bg-danger');
+        card.classList.add('border-danger');
+    } else {
+        badge.textContent = 'OFF';
+        badge.classList.remove('bg-danger');
+        badge.classList.add('bg-success');
+        card.classList.remove('border-danger');
+    }
+}
+
+// Initialize UI state from current values
+function initializeUI() {
+    document.querySelectorAll('.chaos-slider').forEach(slider => {
+        const card = slider.closest('.chaos-card');
+        const label = card.querySelector('.slider-value');
+        label.textContent = slider.value;
+        updateCardStyle(card, parseInt(slider.value) > 0);
+    });
+    document.querySelectorAll('.chaos-toggle').forEach(toggle => {
+        const card = toggle.closest('.chaos-card');
+        updateCardStyle(card, toggle.checked);
+    });
+}
+
+// Slider change handler
+document.querySelectorAll('.chaos-slider').forEach(slider => {
+    slider.addEventListener('input', function() {
+        const card = this.closest('.chaos-card');
+        const label = card.querySelector('.slider-value');
+        label.textContent = this.value;
+        updateCardStyle(card, parseInt(this.value) > 0);
+    });
+
+    slider.addEventListener('change', function() {
+        const scenario = this.dataset.scenario;
+        const value = parseInt(this.value);
+        fetch(API_BASE + '/api/chaos/' + scenario, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({value: value})
+        })
+        .then(r => r.json())
+        .then(data => console.log('Chaos updated:', scenario, data))
+        .catch(err => console.error('Chaos error:', err));
+    });
+});
+
+// Toggle change handler
+document.querySelectorAll('.chaos-toggle').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+        const scenario = this.dataset.scenario;
+        const value = this.checked;
+        const card = this.closest('.chaos-card');
+        updateCardStyle(card, value);
+
+        fetch(API_BASE + '/api/chaos/' + scenario, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({value: value})
+        })
+        .then(r => r.json())
+        .then(data => console.log('Chaos updated:', scenario, data))
+        .catch(err => console.error('Chaos error:', err));
+    });
+});
+
+// Reset All
+document.getElementById('resetAll').addEventListener('click', function() {
+    if (!confirm('Reset all chaos scenarios to off?')) return;
+
+    fetch(API_BASE + '/api/chaos/reset', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+        console.log('Chaos reset:', data);
+        // Reset all UI controls
+        document.querySelectorAll('.chaos-slider').forEach(s => {
+            s.value = 0;
+        });
+        document.querySelectorAll('.chaos-toggle').forEach(t => {
+            t.checked = false;
+        });
+        initializeUI();
+    })
+    .catch(err => console.error('Reset error:', err));
+});
+
+// Periodic status refresh
+function refreshStatus() {
+    fetch(API_BASE + '/api/chaos/status')
+    .then(r => r.json())
+    .then(state => {
+        // Update memory leak size
+        const memEl = document.getElementById('memory-leak-size');
+        if (memEl) memEl.textContent = state.memory_leak_size_mb || 0;
+    })
+    .catch(() => {});
+}
+
+initializeUI();
+setInterval(refreshStatus, 5000);
+</script>
+{% endblock %}

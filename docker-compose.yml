@@ -1,0 +1,119 @@
+services:
+  postgresql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ecommerce
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - /:/hostfs:ro
+      - applogs:/var/log/app
+    environment:
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+      - ELASTIC_API_KEY=${ELASTIC_API_KEY}
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "components"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://ecommerce:ecommerce@postgresql:5432/ecommerce
+      - REDIS_URL=redis://redis:6379/0
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+      - OTEL_SERVICE_NAME=ecommerce-api
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo
+    volumes:
+      - applogs:/var/log/app
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      collector:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+    ports:
+      - "80:80"
+    environment:
+      - API_BASE=http://api:8000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+      - OTEL_SERVICE_NAME=ecommerce-frontend
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo
+    volumes:
+      - applogs:/var/log/app
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:80/')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      api:
+        condition: service_healthy
+
+  loadgen:
+    build:
+      context: .
+      target: loadgen
+    environment:
+      - FRONTEND_BASE=http://frontend
+      - API_BASE=http://api:8000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+      - OTEL_SERVICE_NAME=ecommerce-loadgen
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, signal; os.kill(1, 0)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  applogs:

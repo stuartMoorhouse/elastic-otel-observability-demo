@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{% if product %}{{ product.name }}{% else %}Product Not Found{% endif %} — OTel Demo Shop{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i> {{ error }}
+</div>
+<a href="/products" class="btn btn-primary">Back to Products</a>
+{% elif product %}
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/products">Products</a></li>
+        <li class="breadcrumb-item"><a href="/products?category={{ product.category }}">{{ product.category }}</a></li>
+        <li class="breadcrumb-item active">{{ product.name }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-5 mb-4">
+        <img src="{{ product.image_url }}" class="img-fluid rounded shadow" alt="{{ product.name }}" style="width: 100%; max-height: 400px; object-fit: cover;">
+    </div>
+    <div class="col-md-7">
+        <span class="badge bg-secondary mb-2">{{ product.category }}</span>
+        <h1>{{ product.name }}</h1>
+        <p class="text-muted">{{ product.description }}</p>
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="display-6 text-primary fw-bold">${{ "%.2f"|format(product.price) }}</span>
+            <span class="badge {% if product.stock > 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                {% if product.stock > 0 %}{{ product.stock }} in stock{% else %}Out of Stock{% endif %}
+            </span>
+        </div>
+
+        {% if product.stock > 0 %}
+        <form method="post" action="/cart/add">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <div class="input-group" style="max-width: 250px;">
+                <span class="input-group-text">Qty</span>
+                <input type="number" name="quantity" class="form-control" value="1" min="1" max="{{ product.stock }}">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-cart-plus"></i> Add to Cart</button>
+            </div>
+        </form>
+        {% else %}
+        <button class="btn btn-secondary" disabled>Out of Stock</button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

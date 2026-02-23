@@ -1,0 +1,12 @@
+.git
+.terraform
+terraform/.terraform
+terraform/*.tfstate*
+state/
+userdata/
+*.tfvars
+*.tfvars.json
+.env
+__pycache__
+*.pyc
+.DS_Store
