@@ -24,3 +24,5 @@ opentelemetry-distro>=0.43b0
 # OpenTelemetry - Instrumentation (auto-installed via bootstrap)
 opentelemetry-exporter-otlp>=1.22.0
 opentelemetry-instrumentation>=0.43b0
+
+starlette==0.47.2
